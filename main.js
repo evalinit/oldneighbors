@@ -1,395 +1,164 @@
-const CURRENT_STANDINGS = [
-    'Sacramento Kings',
-    'Washington Wizards',
-    'New Orleans Pelicans',
-    'Indiana Pacers',
-    'Brooklyn Nets',
-    'Utah Jazz',
-    'Dallas Mavericks',
-    'Memphis Grizzlies',
-    'Milwaukee Bucks',
-    'Chicago Bulls',
-    'Atlanta Hawks',
-    'Charlotte Hornets',
-    'Los Angeles Clippers',
-    'Portland Trail Blazers',
-    'Miami Heat',
-    'Golden State Warriors',
-    'Orlando Magic',
-    'Philadelphia 76ers',
-    'Phoenix Suns',
-    'Toronto Raptors',
-    'Minnesota Timberwolves',
-    'Los Angeles Lakers',
-    'Cleveland Cavaliers',
-    'Houston Rockets',
-    'Denver Nuggets',
-    'New York Knicks',
-    'Boston Celtics',
-    'San Antonio Spurs',
-    'Oklahoma City Thunder',
-    'Detroit Pistons',
-]
-
-const PRIOR_STANDINGS = [
-    'Utah Jazz',
-    'Washington Wizards',
-    'Charlotte Hornets',
-    'New Orleans Pelicans',
-    'Philadelphia 76ers',
-    'Brooklyn Nets',
-    'Toronto Raptors',
-    'San Antonio Spurs',
-    'Phoenix Suns',
-    'Portland Trail Blazers',
-    'Miami Heat',
-    'Chicago Bulls',
-    'Dallas Mavericks',
-    'Atlanta Hawks',
-    'Sacramento Kings',
-    'Orlando Magic',
-    'Detroit Pistons',
-    'Golden State Warriors',
-    'Memphis Grizzlies',
-    'Milwaukee Bucks',
-    'Minnesota Timberwolves',
-    'Denver Nuggets',
-    'Indiana Pacers',
-    'Los Angeles Clippers',
-    'Los Angeles Lakers',
-    'New York Knicks',
-    'Houston Rockets',
-    'Boston Celtics',
-    'Cleveland Cavaliers',
-    'Oklahoma City Thunder',
-]
-
-const TEAMS = {}
-
-let teamIdx = 0
-for (const team of PRIOR_STANDINGS) {
-    let neighbor1, neighbor2
-    if (teamIdx == 0) {
-        neighbor1 = CURRENT_STANDINGS.indexOf(PRIOR_STANDINGS[1])
-        neighbor2 = CURRENT_STANDINGS.indexOf(PRIOR_STANDINGS[2])
-    } else if (teamIdx == 29) {
-        neighbor1 = CURRENT_STANDINGS.indexOf(PRIOR_STANDINGS[27])
-        neighbor2 = CURRENT_STANDINGS.indexOf(PRIOR_STANDINGS[28]) 
-    } else {
-        neighbor1 = CURRENT_STANDINGS.indexOf(PRIOR_STANDINGS[teamIdx - 1])
-        neighbor2 = CURRENT_STANDINGS.indexOf(PRIOR_STANDINGS[teamIdx + 1])
-    }
-    TEAMS[team] = (neighbor1 + neighbor2) / 2
-    teamIdx++
+const asInt = (v, fallback) => {
+    const n = Number.parseInt(String(v ?? ''), 10)
+    return Number.isFinite(n) ? n : fallback
 }
 
-const ORDERED_TEAMS = Object.keys(TEAMS).sort((a, b) => TEAMS[a] - TEAMS[b])
-
-let CURRENT_DRAFT_ORDER = ''
-
-teamIdx = 1
-for (const team of ORDERED_TEAMS) {
-    let teamString = `${teamIdx}) ${team}\n`
-    CURRENT_DRAFT_ORDER += teamString
-    teamIdx++
+const asBool = (v, fallback) => {
+    if (v === null || v === undefined) return fallback
+    const s = String(v).toLowerCase()
+    if (s === '1' || s === 'true' || s === 'yes' || s === 'y' || s === 'on') return true
+    if (s === '0' || s === 'false' || s === 'no' || s === 'n' || s === 'off') return false
+    return fallback
 }
 
-const TEXT = `
-I like the idea of Old Neighbors:
+const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n))
 
-NBA draft order is determined by the average placing of the two teams whose placing was nearest yours the prior season, the team on either side, if possible. Standard tiebreakers apply.
+const parseConfigFromQuery = () => {
+    const qs = new URLSearchParams(window.location.search)
 
-If implemented the current draft order (before traded picks because I'm lazy) would be:
+    const includeSelf = asBool(qs.get('self'), false)
 
-${CURRENT_DRAFT_ORDER}
-The wizards and the jazz play each other two more times is all I'm saying.
-`
+    const radiusParam = qs.get('radius')
+    const neighborsParam = qs.get('neighbors')
 
-document.body.innerText = TEXT
+    let neighborRadius = 1
 
+    if (radiusParam !== null) {
+        neighborRadius = asInt(radiusParam, 1)
+    } else if (neighborsParam !== null) {
+        const neighbors = asInt(neighborsParam, 2)
 
-// ---- no-CORS schedule: hand-made JSON you can edit ----
-const SCHEDULE_JSON = {
-    leagueSchedule: {
-        gameDates: [
-            {
-                gameDate: '2026-02-20',
-                games: [
-                    { gameDateTimeUTC: '2026-02-21T00:30:00Z', away: 'Washington Wizards', home: 'Utah Jazz' },
-                    { gameDateTimeUTC: '2026-02-21T03:00:00Z', away: 'Charlotte Hornets', home: 'New Orleans Pelicans' },
-                ],
-            },
-            {
-                gameDate: '2026-02-23',
-                games: [
-                    { gameDateTimeUTC: '2026-02-24T01:00:00Z', away: 'Utah Jazz', home: 'Washington Wizards' },
-                    { gameDateTimeUTC: '2026-02-24T00:30:00Z', away: 'Brooklyn Nets', home: 'Philadelphia 76ers' },
-                ],
-            },
-            {
-                gameDate: '2026-02-26',
-                games: [
-                    { gameDateTimeUTC: '2026-02-27T01:00:00Z', away: 'Toronto Raptors', home: 'San Antonio Spurs' },
-                    { gameDateTimeUTC: '2026-02-27T03:00:00Z', away: 'Phoenix Suns', home: 'Portland Trail Blazers' },
-                ],
-            },
-            {
-                gameDate: '2026-03-01',
-                games: [
-                    { gameDateTimeUTC: '2026-03-02T00:00:00Z', away: 'Miami Heat', home: 'Chicago Bulls' },
-                    { gameDateTimeUTC: '2026-03-02T01:30:00Z', away: 'Dallas Mavericks', home: 'Atlanta Hawks' },
-                ],
-            },
-            {
-                gameDate: '2026-03-05',
-                games: [
-                    { gameDateTimeUTC: '2026-03-06T03:00:00Z', away: 'Sacramento Kings', home: 'Orlando Magic' },
-                    { gameDateTimeUTC: '2026-03-06T00:30:00Z', away: 'Memphis Grizzlies', home: 'Milwaukee Bucks' },
-                ],
-            },
-        ],
-    },
+        if (neighbors % 2 === 0) neighborRadius = Math.max(1, neighbors / 2)
+        else neighborRadius = Math.max(1, neighbors)
+    }
+
+    neighborRadius = clamp(neighborRadius, 1, 10)
+
+    return { neighborRadius, includeSelf }
 }
 
+const computeDraftOrder = ({ neighborRadius, includeSelf }, priorStandings, currentStandings) => {
+    const teamsScore = {}
 
-// ---- everything below stays focused on schedule ranking under the ORIGINAL formula ----
-;(() => {
-    const fmtDate = (iso) => {
-        const d = new Date(iso)
-        if (Number.isNaN(d.getTime())) return iso
-        return d.toLocaleString(undefined, {
-            weekday: 'short',
-            month: 'short',
-            day: 'numeric',
-            hour: 'numeric',
-            minute: '2-digit',
-        })
-    }
+    for (let i = 0; i < priorStandings.length; i++) {
+        const team = priorStandings[i]
+        const indices = []
 
-    const buildOldNeighborPairs = () => {
-        const set = new Set()
-        for (let i = 0; i < PRIOR_STANDINGS.length - 1; i++) {
-            const a = PRIOR_STANDINGS[i]
-            const b = PRIOR_STANDINGS[i + 1]
-            set.add(`${a}|||${b}`)
-            set.add(`${b}|||${a}`)
-        }
-        return set
-    }
-
-    const computeDraftOrder = ({ neighborRadius, includeSelf }, currentStandings) => {
-        const teamsScore = {}
-
-        for (let i = 0; i < PRIOR_STANDINGS.length; i++) {
-            const team = PRIOR_STANDINGS[i]
-            const indices = []
-
-            const addIdx = (teamName) => {
-                const idx = currentStandings.indexOf(teamName)
-                if (idx !== -1) indices.push(idx)
-            }
-
-            for (let r = 1; r <= neighborRadius; r++) {
-                if (i - r >= 0) addIdx(PRIOR_STANDINGS[i - r])
-                if (i + r <= 29) addIdx(PRIOR_STANDINGS[i + r])
-            }
-
-            if (includeSelf) addIdx(team)
-
-            if (!indices.length) {
-                teamsScore[team] = Number.POSITIVE_INFINITY
-                continue
-            }
-
-            const sum = indices.reduce((a, b) => a + b, 0)
-            teamsScore[team] = sum / indices.length
+        const addIdx = (teamName) => {
+            const idx = currentStandings.indexOf(teamName)
+            if (idx !== -1) indices.push(idx)
         }
 
-        return Object.keys(teamsScore).sort((a, b) => teamsScore[a] - teamsScore[b])
-    }
-
-    const computeDraftOrderText = (title, config) => {
-        const order = computeDraftOrder(config, CURRENT_STANDINGS)
-
-        let out = `\n\n${title}\n\n`
-        let idx = 1
-        for (const team of order) {
-            out += `${idx}) ${team}\n`
-            idx++
-        }
-        return out
-    }
-
-    const forceWinnerBetter = (standings, winner, loser) => {
-        const s = standings.slice()
-        const iw = s.indexOf(winner)
-        const il = s.indexOf(loser)
-        if (iw === -1 || il === -1) return s
-
-        if (iw > il) return s
-
-        s[iw] = loser
-        s[il] = winner
-        return s
-    }
-
-    const computeOriginalTeamsScoreMap = (currentStandings) => {
-        const teams = {}
-        for (let i = 0; i < PRIOR_STANDINGS.length; i++) {
-            const team = PRIOR_STANDINGS[i]
-            let neighbor1, neighbor2
-            if (i === 0) {
-                neighbor1 = currentStandings.indexOf(PRIOR_STANDINGS[1])
-                neighbor2 = currentStandings.indexOf(PRIOR_STANDINGS[2])
-            } else if (i === 29) {
-                neighbor1 = currentStandings.indexOf(PRIOR_STANDINGS[27])
-                neighbor2 = currentStandings.indexOf(PRIOR_STANDINGS[28])
-            } else {
-                neighbor1 = currentStandings.indexOf(PRIOR_STANDINGS[i - 1])
-                neighbor2 = currentStandings.indexOf(PRIOR_STANDINGS[i + 1])
-            }
-            teams[team] = (neighbor1 + neighbor2) / 2
-        }
-        return teams
-    }
-
-    const computeOriginalDraftOrder = (currentStandings) => {
-        const teams = computeOriginalTeamsScoreMap(currentStandings)
-        return Object.keys(teams).sort((a, b) => teams[a] - teams[b])
-    }
-
-    const topNChangeScore = (baselineOrder, newOrder, n) => {
-        const baseTop = baselineOrder.slice(0, n)
-        const newTop = newOrder.slice(0, n)
-
-        const basePos = new Map()
-        baselineOrder.forEach((t, i) => basePos.set(t, i))
-
-        const newPos = new Map()
-        newOrder.forEach((t, i) => newPos.set(t, i))
-
-        const union = new Set([...baseTop, ...newTop])
-
-        let score = 0
-        for (const t of union) {
-            score += Math.abs((basePos.get(t) ?? 999) - (newPos.get(t) ?? 999))
+        for (let r = 1; r <= neighborRadius; r++) {
+            if (i - r >= 0) addIdx(priorStandings[i - r])
+            if (i + r <= priorStandings.length - 1) addIdx(priorStandings[i + r])
         }
 
-        const changes = []
-        for (let i = 0; i < n; i++) {
-            if (baseTop[i] !== newTop[i]) changes.push([i + 1, baseTop[i], newTop[i]])
+        if (includeSelf) addIdx(team)
+
+        if (!indices.length) {
+            teamsScore[team] = Number.POSITIVE_INFINITY
+            continue
         }
 
-        return { score, changes }
+        const sum = indices.reduce((a, b) => a + b, 0)
+        teamsScore[team] = sum / indices.length
     }
 
-    const interestingnessForGameOriginalRule = (standings, baselineOrder, n, away, home) => {
-        const orderAwayWin = computeOriginalDraftOrder(forceWinnerBetter(standings, away, home))
-        const orderHomeWin = computeOriginalDraftOrder(forceWinnerBetter(standings, home, away))
+    return Object.keys(teamsScore).sort((a, b) => teamsScore[a] - teamsScore[b])
+}
 
-        const a = topNChangeScore(baselineOrder, orderAwayWin, n)
-        const b = topNChangeScore(baselineOrder, orderHomeWin, n)
+const buildText = ({ neighborRadius, includeSelf }, order) => {
+    const neighborsTotal = neighborRadius * 2
+    const selfText = includeSelf ? ' + self' : ''
+    const title = `Old Neighbors draft order (${neighborsTotal} neighbors${selfText})`
 
-        if (a.score >= b.score) return { bestOutcome: `${away} win`, score: a.score, changes: a.changes }
-        return { bestOutcome: `${home} win`, score: b.score, changes: b.changes }
+    let out = ''
+    out += `${title}\n\n`
+
+    let idx = 1
+    for (const team of order) {
+        out += `${idx}) ${team}\n`
+        idx++
     }
 
-    const flattenSchedule = () => {
-        const now = new Date()
-        const games = []
-        const gameDates = SCHEDULE_JSON?.leagueSchedule?.gameDates ?? []
+    out += `\n`
+    out += `The Wizards and the Jazz play each other two more times is all I'm saying.\n`
 
-        for (const gd of gameDates) {
-            for (const g of (gd.games ?? [])) {
-                const iso = g.gameDateTimeUTC
-                const when = new Date(iso)
-                if (!iso || Number.isNaN(when.getTime())) continue
-                if (when < now) continue
+    return out
+}
 
-                games.push({
-                    whenIso: iso,
-                    whenPretty: fmtDate(iso),
-                    away: g.away,
-                    home: g.home,
-                })
-            }
-        }
+const buildExampleLinks = (baseUrl) => {
+    const links = []
 
-        return games
+    const push = (params) => {
+        const u = new URL(baseUrl)
+        for (const [k, v] of Object.entries(params)) u.searchParams.set(k, String(v))
+        links.push(u.toString())
     }
 
-    const renderTopGamesOriginalRule = (games, topN) => {
-        const n = 6
-        const baselineOrder = computeOriginalDraftOrder(CURRENT_STANDINGS)
+    push({ neighbors: 2, self: 0 })
+    push({ neighbors: 2, self: 1 })
+    push({ neighbors: 4, self: 0 })
+    push({ neighbors: 4, self: 1 })
+    push({ neighbors: 6, self: 0 })
+    push({ neighbors: 6, self: 1 })
 
-        const scored = games.map((g) => {
-            const stake = interestingnessForGameOriginalRule(CURRENT_STANDINGS, baselineOrder, n, g.away, g.home)
-            return {
-                ...g,
-                stakeScore: stake.score,
-                bestOutcome: stake.bestOutcome,
-                changes: stake.changes,
-            }
-        })
+    return links
+}
 
-        scored.sort((a, b) => b.stakeScore - a.stakeScore)
+const renderLinks = (urls) => {
+    const container = document.createElement('div')
 
-        let out = `\n\n10 most interesting Old Neighbor games remaining (your current rule: 2 neighbors)\n\n`
-        const top = scored.slice(0, topN)
+    const intro = document.createElement('div')
+    intro.innerText = '\nTry other settings:\n'
+    container.appendChild(intro)
 
-        if (!top.length) {
-            out += 'No games in the embedded schedule matched Old Neighbors.\n'
-            return out
-        }
+    for (const url of urls) {
+        const a = document.createElement('a')
+        a.href = url
+        a.innerText = url
 
-        let i = 1
-        for (const g of top) {
-            out += `${i}) ${g.whenPretty} — ${g.away} @ ${g.home}\n`
-            out += `    top-6 stake: ${g.stakeScore.toFixed(1)} (most chaos if ${g.bestOutcome})\n`
-            if (g.changes.length) {
-                out += `    what changes in top-6 (examples):\n`
-                for (const [slot, from, to] of g.changes.slice(0, 4)) {
-                    out += `        #${slot}: ${from} -> ${to}\n`
-                }
-            } else {
-                out += `    what changes in top-6: none\n`
-            }
-            i++
-        }
+        const line = document.createElement('div')
+        line.appendChild(a)
 
-        return out
+        container.appendChild(line)
     }
 
-    const main = () => {
-        const oldNeighbors = buildOldNeighborPairs()
-        const scheduleGames = flattenSchedule()
+    const notes = document.createElement('div')
+    notes.innerText =
+        '\nParams:\n' +
+        '  neighbors=2 means 1 on each side\n' +
+        '  neighbors=4 means 2 on each side\n' +
+        '  self=1 includes the team itself in the average\n'
+    container.appendChild(notes)
 
-        const games = scheduleGames.filter((g) => {
-            if (CURRENT_STANDINGS.indexOf(g.away) === -1) return false
-            if (CURRENT_STANDINGS.indexOf(g.home) === -1) return false
-            if (PRIOR_STANDINGS.indexOf(g.away) === -1) return false
-            if (PRIOR_STANDINGS.indexOf(g.home) === -1) return false
-            return oldNeighbors.has(`${g.away}|||${g.home}`)
-        })
+    return container
+}
 
-        document.body.innerText += '\n\nBelow: “what games matter” (ranked) under the ORIGINAL 2-neighbor rule\n'
-        document.body.innerText += renderTopGamesOriginalRule(games, 10)
+const main = async () => {
+    const config = parseConfigFromQuery()
 
-        // After the schedule stuff, show full draft orders under smoother variants
-        document.body.innerText += '\n\n---\n'
-        document.body.innerText += computeDraftOrderText(
-            'Draft order if you use the 4 closest neighbors (two on each side)',
-            { neighborRadius: 2, includeSelf: false }
-        )
-
-        document.body.innerText += '\n\n---\n'
-        document.body.innerText += computeDraftOrderText(
-            'Draft order if you use the 4 closest neighbors plus your own record (4 neighbors + self)',
-            { neighborRadius: 2, includeSelf: true }
-        )
-
-        document.body.innerText += '\n And none of these teams would have incentive to lose.'
+    const resp = await fetch('./standings.json', { cache: 'no-store' })
+    if (!resp.ok) {
+        document.body.innerText = `Failed to load standings.json (${resp.status})\n`
+        return
     }
 
-    main()
-})()
+    const data = await resp.json()
+    const currentStandings = data.current_standings ?? []
+    const priorStandings = data.prior_standings ?? []
+
+    const order = computeDraftOrder(config, priorStandings, currentStandings)
+    const text = buildText(config, order)
+
+    document.body.innerText = text
+
+    const baseUrl = new URL(window.location.href)
+    baseUrl.search = ''
+
+    const links = buildExampleLinks(baseUrl.toString())
+    document.body.appendChild(renderLinks(links))
+}
+
+main()
