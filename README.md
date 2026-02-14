@@ -1,8 +1,8 @@
 # Old Neighbors
 
-Forgive me for using the following ChatGPT prompt:
-haha i wanted to paste my code. nba teams obviously. keep the code exacltly the same if you think it will work
+# before chatgpt got a hold of it:
 
+```
 const CURRENT_STANDINGS = [
 
 ]
@@ -49,6 +49,8 @@ NBA draft order is determined by the average placing of the two teams whose plac
 If implemented the current draft order (before traded picks because I'm lazy) would be:
 
 ${CURRENT_DRAFT_ORDER}
+The wizards and jazz pley each other two more times is all I'm saying.
 `
 
 document.body.innerText = TEXT
+```

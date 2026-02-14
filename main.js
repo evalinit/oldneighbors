@@ -1,3 +1,15 @@
+/*
+git note (assumptions + incremental fix)
+- OG intent (as you clarified): treat PRIOR standings as a line segment (no wrap)
+  - normally: your two nearest neighbors are one on each side
+  - BUT at the ends: if you’re the worst team, you take #2 and #3 (both “up” the line)
+    if you’re the best team, you take the two just below you
+  - more generally with neighbors=2R: take R on each side, but if one side runs out, shift the “missing” neighbors to the other side
+  - this matches “closest numbers on a line segment” and “always favor higher” at the low end (worst team)
+- incremental change today: implement that boundary-shift rule for any radius, with no exception-paths or calling an “original” function
+- also: sort is numeric by score (so you don’t get string-compare weirdness); this is consistent with the intent and with “Jazz at 4” expectation
+*/
+
 const asInt = (v, fallback) => {
     const n = Number.parseInt(String(v ?? ''), 10)
     return Number.isFinite(n) ? n : fallback
@@ -33,71 +45,6 @@ const parseConfigFromQuery = () => {
     neighborRadius = clamp(neighborRadius, 1, 10)
 
     return { neighborRadius, includeSelf }
-}
-
-const computeOriginalTwoNeighborScoreMap = (priorStandings, currentStandings) => {
-    const teams = {}
-
-    for (let i = 0; i < priorStandings.length; i++) {
-        const team = priorStandings[i]
-
-        let neighbor1, neighbor2
-
-        if (i === 0) {
-            neighbor1 = currentStandings.indexOf(priorStandings[1])
-            neighbor2 = currentStandings.indexOf(priorStandings[2])
-        } else if (i === priorStandings.length - 1) {
-            neighbor1 = currentStandings.indexOf(priorStandings[priorStandings.length - 3])
-            neighbor2 = currentStandings.indexOf(priorStandings[priorStandings.length - 2])
-        } else {
-            neighbor1 = currentStandings.indexOf(priorStandings[i - 1])
-            neighbor2 = currentStandings.indexOf(priorStandings[i + 1])
-        }
-
-        teams[team] = (neighbor1 + neighbor2) / 2
-    }
-
-    return teams
-}
-
-const computeDraftOrderOriginalTwoNeighborRule = (priorStandings, currentStandings) => {
-    const teams = computeOriginalTwoNeighborScoreMap(priorStandings, currentStandings)
-    return Object.keys(teams).sort((a, b) => teams[a] - teams[b])
-}
-
-const computeDraftOrderRadiusRule = ({ neighborRadius, includeSelf }, priorStandings, currentStandings) => {
-    if (neighborRadius === 1 && !includeSelf) {
-        return computeDraftOrderOriginalTwoNeighborRule(priorStandings, currentStandings)
-    }
-
-    const teamsScore = {}
-
-    for (let i = 0; i < priorStandings.length; i++) {
-        const team = priorStandings[i]
-        const indices = []
-
-        const addIdx = (teamName) => {
-            const idx = currentStandings.indexOf(teamName)
-            if (idx !== -1) indices.push(idx)
-        }
-
-        for (let r = 1; r <= neighborRadius; r++) {
-            if (i - r >= 0) addIdx(priorStandings[i - r])
-            if (i + r <= priorStandings.length - 1) addIdx(priorStandings[i + r])
-        }
-
-        if (includeSelf) addIdx(team)
-
-        if (!indices.length) {
-            teamsScore[team] = Number.POSITIVE_INFINITY
-            continue
-        }
-
-        const sum = indices.reduce((a, b) => a + b, 0)
-        teamsScore[team] = sum / indices.length
-    }
-
-    return Object.keys(teamsScore).sort((a, b) => teamsScore[a] - teamsScore[b])
 }
 
 const buildOrderText = (order) => {
@@ -150,9 +97,10 @@ const renderLinks = (urls) => {
     const notes = document.createElement('div')
     notes.innerText =
         '\nParams:\n' +
-        '  neighbors=2 means 1 on each side (original rule)\n' +
-        '  neighbors=4 means 2 on each side\n' +
-        '  self=1 includes the team itself in the average\n'
+        '  neighbors=2 means 1 on each side, except ends shift inward (your rule)\n' +
+        '  neighbors=4 means 2 on each side, except ends shift inward\n' +
+        '  self=1 includes the team itself in the average\n' +
+        '  radius=N is equivalent to neighbors=2N\n'
     container.appendChild(notes)
 
     return container
@@ -168,10 +116,63 @@ const main = async () => {
     }
 
     const data = await resp.json()
-    const currentStandings = data.current_standings ?? []
-    const priorStandings = data.prior_standings ?? []
+    const CURRENT_STANDINGS = data.current_standings ?? []
+    const PRIOR_STANDINGS = data.prior_standings ?? []
 
-    const order = computeDraftOrderRadiusRule(config, priorStandings, currentStandings)
+    const TEAMS = {}
+    const n = PRIOR_STANDINGS.length
+
+    let i = 0
+    for (const team of PRIOR_STANDINGS) {
+        // Want k neighbors total (no wrap). Start with R on each side,
+        // then "shift" any missing neighbors to the other side.
+        const R = config.neighborRadius
+        const k = R * 2
+
+        let left = R
+        let right = R
+
+        // If we're too close to the left end, move missing neighbors to the right
+        if (i - left < 0) {
+            const deficit = 0 - (i - left)
+            left = i
+            right = Math.min((n - 1) - i, right + deficit)
+        }
+
+        // If we're too close to the right end, move missing neighbors to the left
+        if (i + right > n - 1) {
+            const deficit = (i + right) - (n - 1)
+            right = (n - 1) - i
+            left = Math.min(i, left + deficit)
+        }
+
+        // Now collect exactly left + right neighbors around i (no wrap),
+        // which will be k unless n is too small.
+        const indices = []
+
+        const addIdx = (teamName) => {
+            const idx = CURRENT_STANDINGS.indexOf(teamName)
+            if (idx !== -1) indices.push(idx)
+        }
+
+        for (let j = i - left; j <= i - 1; j++) addIdx(PRIOR_STANDINGS[j])
+        for (let j = i + 1; j <= i + right; j++) addIdx(PRIOR_STANDINGS[j])
+
+        if (config.includeSelf) addIdx(team)
+
+        if (!indices.length) {
+            TEAMS[team] = Number.POSITIVE_INFINITY
+            i++
+            continue
+        }
+
+        const sum = indices.reduce((a, b) => a + b, 0)
+        TEAMS[team] = sum / indices.length
+
+        i++
+    }
+
+    const ORDERED_TEAMS = Object.keys(TEAMS).sort((a, b) => TEAMS[a] - TEAMS[b])
 
     const neighborsTotal = config.neighborRadius * 2
     const selfText = config.includeSelf ? ' + self' : ''
@@ -179,9 +180,12 @@ const main = async () => {
 
     let text = ''
     text += `${title}\n\n`
-    text += buildOrderText(order)
+    text += `I like the idea of Old Neighbors:\n\n`
+    text += `NBA draft order is determined by the average placing of the two teams whose placing was nearest yours the prior season, the team on either side, if possible. Standard tiebreakers apply.\n\n`
+    text += `If implemented the current draft order (before traded picks because I'm lazy) would be:\n\n`
+    text += buildOrderText(ORDERED_TEAMS)
     text += `\n`
-    text += `The Wizards and the Jazz play each other two more times is all I'm saying.\n`
+    text += `The wizards and jazz pley each other two more times is all I'm saying.\n`
 
     document.body.innerText = text
 
