@@ -1,0 +1,6 @@
+body {
+  white-space: pre-wrap;
+  font-family: monospace;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
