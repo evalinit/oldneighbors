@@ -1,13 +1,16 @@
 /*
-git note (assumptions + incremental fix)
-- OG intent (as you clarified): treat PRIOR standings as a line segment (no wrap)
-  - normally: your two nearest neighbors are one on each side
-  - BUT at the ends: if you’re the worst team, you take #2 and #3 (both “up” the line)
-    if you’re the best team, you take the two just below you
-  - more generally with neighbors=2R: take R on each side, but if one side runs out, shift the “missing” neighbors to the other side
-  - this matches “closest numbers on a line segment” and “always favor higher” at the low end (worst team)
-- incremental change today: implement that boundary-shift rule for any radius, with no exception-paths or calling an “original” function
-- also: sort is numeric by score (so you don’t get string-compare weirdness); this is consistent with the intent and with “Jazz at 4” expectation
+daily update note (what i changed today - 2026-02-17)
+- added query arg trades=1|0 (default 1)
+  - trades=1: show traded-pick owners using picks_2026.json snapshot by record slot
+  - trades=0: ignore picks_2026.json and show "before traded picks"
+- made example links descriptive (not just raw urls)
+- fixed params footer text (radius line had an extra character in the sample output)
+
+next improvements to do on another day:
+- show a short legend line when trades=1:
+  "trades are applied by current record slot using picks_2026.json (tankathon snapshot)"
+- optionally include a per-line marker for protected/conditional picks when present in picks_2026.json
+- add trades examples for radius too, not just neighbors/self
 */
 
 const asInt = (v, fallback) => {
@@ -29,6 +32,7 @@ const parseConfigFromQuery = () => {
     const qs = new URLSearchParams(window.location.search)
 
     const includeSelf = asBool(qs.get('self'), false)
+    const includeTrades = asBool(qs.get('trades'), true)
 
     const neighborsParam = qs.get('neighbors')
     const radiusParam = qs.get('radius')
@@ -44,63 +48,92 @@ const parseConfigFromQuery = () => {
 
     neighborRadius = clamp(neighborRadius, 1, 10)
 
-    return { neighborRadius, includeSelf }
+    return { neighborRadius, includeSelf, includeTrades }
 }
 
-const buildOrderText = (order) => {
+const buildOrderText = (order, currentStandings, picksBySlot, includeTrades) => {
     let out = ''
     let idx = 1
-    for (const team of order) {
-        out += `${idx}) ${team}\n`
+
+    for (const originalTeam of order) {
+        if (!includeTrades) {
+            out += `${idx}) ${originalTeam}\n`
+            idx++
+            continue
+        }
+
+        const slot = currentStandings.indexOf(originalTeam) + 1
+        const pick = picksBySlot[String(slot)] ?? null
+
+        if (pick && pick.owner && pick.original) {
+            if (pick.owner !== pick.original) out += `${idx}) ${pick.owner} (from ${pick.original})\n`
+            else out += `${idx}) ${pick.original}\n`
+        } else {
+            out += `${idx}) ${originalTeam}\n`
+        }
+
         idx++
     }
+
     return out
 }
 
 const buildExampleLinks = (baseUrl) => {
     const links = []
 
-    const push = (params) => {
+    const make = (label, params) => {
         const u = new URL(baseUrl)
         for (const [k, v] of Object.entries(params)) u.searchParams.set(k, String(v))
-        links.push(u.toString())
+        links.push({ label, url: u.toString() })
     }
 
-    push({ neighbors: 2, self: 0 })
-    push({ neighbors: 2, self: 1 })
-    push({ neighbors: 4, self: 0 })
-    push({ neighbors: 4, self: 1 })
-    push({ neighbors: 6, self: 0 })
-    push({ neighbors: 6, self: 1 })
+    make('2 neighbors, exclude self, include trades', { neighbors: 2, self: 0, trades: 1 })
+    make('2 neighbors, include self, include trades', { neighbors: 2, self: 1, trades: 1 })
+    make('4 neighbors, exclude self, include trades', { neighbors: 4, self: 0, trades: 1 })
+    make('4 neighbors, include self, include trades', { neighbors: 4, self: 1, trades: 1 })
+    make('6 neighbors, exclude self, include trades', { neighbors: 6, self: 0, trades: 1 })
+    make('6 neighbors, include self, include trades', { neighbors: 6, self: 1, trades: 1 })
+
+    make('2 neighbors, exclude self, no trades', { neighbors: 2, self: 0, trades: 0 })
+    make('2 neighbors, include self, no trades', { neighbors: 2, self: 1, trades: 0 })
 
     return links
 }
 
-const renderLinks = (urls) => {
+const renderLinks = (items) => {
     const container = document.createElement('div')
 
     const intro = document.createElement('div')
     intro.innerText = '\nTry other settings:\n'
     container.appendChild(intro)
 
-    for (const url of urls) {
-        const a = document.createElement('a')
-        a.href = url
-        a.innerText = url
-
+    for (const item of items) {
         const line = document.createElement('div')
+
+        const a = document.createElement('a')
+        a.href = item.url
+        a.innerText = item.label
+
+        const urlSpan = document.createElement('span')
+        urlSpan.innerText = `\n${item.url}`
+
         line.appendChild(a)
+        line.appendChild(document.createElement('br'))
+        line.appendChild(urlSpan)
 
         container.appendChild(line)
+        container.appendChild(document.createElement('br'))
     }
 
     const notes = document.createElement('div')
     notes.innerText =
-        '\nParams:\n' +
-        '  neighbors=2 means 1 on each side, except ends shift inward (your rule)\n' +
+        'Params:\n' +
+        '  neighbors=2 means 1 on each side, except ends shift inward\n' +
         '  neighbors=4 means 2 on each side, except ends shift inward\n' +
         '  self=1 includes the team itself in the average\n' +
-        '  radius=N is equivalent to neighbors=2N\n'
+        '  radius=N is equivalent to neighbors=2N\n' +
+        '  trades=1 includes traded picks (default)\n' +
+        '  trades=0 ignores traded picks\n'
     container.appendChild(notes)
 
     return container
@@ -109,45 +142,49 @@ const renderLinks = (urls) => {
 const main = async () => {
     const config = parseConfigFromQuery()
 
-    const resp = await fetch('./standings.json', { cache: 'no-store' })
-    if (!resp.ok) {
-        document.body.innerText = `Failed to load standings.json (${resp.status})\n`
+    const standingsResp = await fetch('./standings.json', { cache: 'no-store' })
+    if (!standingsResp.ok) {
+        document.body.innerText = `Failed to load standings.json (${standingsResp.status})\n`
         return
     }
 
-    const data = await resp.json()
-    const CURRENT_STANDINGS = data.current_standings ?? []
-    const PRIOR_STANDINGS = data.prior_standings ?? []
+    let PICKS_BY_SLOT = {}
+    if (config.includeTrades) {
+        const picksResp = await fetch('./picks_2026.json', { cache: 'no-store' })
+        if (!picksResp.ok) {
+            document.body.innerText = `Failed to load picks_2026.json (${picksResp.status})\n`
+            return
+        }
+        const picksData = await picksResp.json()
+        PICKS_BY_SLOT = picksData.first_round_by_record_slot ?? {}
+    }
+
+    const standingsData = await standingsResp.json()
+    const CURRENT_STANDINGS = standingsData.current_standings ?? []
+    const PRIOR_STANDINGS = standingsData.prior_standings ?? []
 
     const TEAMS = {}
     const n = PRIOR_STANDINGS.length
 
     let i = 0
     for (const team of PRIOR_STANDINGS) {
-        // Want k neighbors total (no wrap). Start with R on each side,
-        // then "shift" any missing neighbors to the other side.
         const R = config.neighborRadius
-        const k = R * 2
 
         let left = R
         let right = R
 
-        // If we're too close to the left end, move missing neighbors to the right
         if (i - left < 0) {
             const deficit = 0 - (i - left)
             left = i
             right = Math.min((n - 1) - i, right + deficit)
         }
 
-        // If we're too close to the right end, move missing neighbors to the left
         if (i + right > n - 1) {
             const deficit = (i + right) - (n - 1)
             right = (n - 1) - i
             left = Math.min(i, left + deficit)
         }
 
-        // Now collect exactly left + right neighbors around i (no wrap),
-        // which will be k unless n is too small.
         const indices = []
 
         const addIdx = (teamName) => {
@@ -176,16 +213,16 @@ const main = async () => {
 
     const neighborsTotal = config.neighborRadius * 2
     const selfText = config.includeSelf ? ' + self' : ''
-    const title = `Old Neighbors draft order (${neighborsTotal} neighbors${selfText})`
+    const tradesText = config.includeTrades ? ' (including traded picks)' : ' (before traded picks)'
 
     let text = ''
-    text += `${title}\n\n`
     text += `I like the idea of Old Neighbors:\n\n`
-    text += `NBA draft order is determined by the average placing of the two teams whose placing was nearest yours the prior season, the team on either side, if possible. Standard tiebreakers apply.\n\n`
-    text += `If implemented the current draft order (before traded picks because I'm lazy) would be:\n\n`
-    text += buildOrderText(ORDERED_TEAMS)
+    text += `NBA draft order is determined by the average placing of the teams whose placing was nearest yours the prior season, on either side, if possible. Standard tiebreakers apply.\n\n`
+    text += `Current Settings: ${neighborsTotal} neighbors${selfText}\n\n`
+    text += `If implemented the current draft order${tradesText} would be:\n\n`
+    text += buildOrderText(ORDERED_TEAMS, CURRENT_STANDINGS, PICKS_BY_SLOT, config.includeTrades)
     text += `\n`
-    text += `The wizards and jazz pley each other two more times is all I'm saying.\n`
+    text += `The wizards and jazz play each other two more times is all I'm saying.\n`
 
     document.body.innerText = text
 

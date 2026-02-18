@@ -1,0 +1,40 @@
+{
+  "as_of_date": "2026-02-17",
+  "source": "https://www.tankathon.com/full_draft",
+  "first_round_by_record_slot": {
+    "1":  { "original": "Sacramento Kings",        "owner": "Sacramento Kings" },
+    "2":  { "original": "Washington Wizards",      "owner": "Washington Wizards" },
+    "3":  { "original": "New Orleans Pelicans",    "owner": "Atlanta Hawks",            "note": "shown as ATL (NO) on Tankathon full order" },
+    "4":  { "original": "Indiana Pacers",          "owner": "Indiana Pacers" },
+    "5":  { "original": "Brooklyn Nets",           "owner": "Brooklyn Nets" },
+    "6":  { "original": "Utah Jazz",               "owner": "Utah Jazz" },
+    "7":  { "original": "Dallas Mavericks",        "owner": "Dallas Mavericks" },
+    "8":  { "original": "Memphis Grizzlies",       "owner": "Memphis Grizzlies" },
+    "9":  { "original": "Milwaukee Bucks",         "owner": "Milwaukee Bucks" },
+    "10": { "original": "Chicago Bulls",           "owner": "Chicago Bulls" },
+    "11": { "original": "Atlanta Hawks",           "owner": "San Antonio Spurs",        "note": "shown as SA (ATL) on Tankathon full order" },
+    "12": { "original": "Charlotte Hornets",       "owner": "Charlotte Hornets" },
+    "13": { "original": "Los Angeles Clippers",    "owner": "Oklahoma City Thunder",    "note": "the OKC/HOU/LAC 'most favorable' pool can route LAC to OKC depending on slots" },
+    "14": { "original": "Portland Trail Blazers",  "owner": "Portland Trail Blazers" },
+    "15": { "original": "Miami Heat",              "owner": "Miami Heat" },
+    "16": { "original": "Golden State Warriors",   "owner": "Golden State Warriors" },
+    "17": { "original": "Orlando Magic",           "owner": "Memphis Grizzlies",        "note": "shown as MEM (ORL) on Tankathon full order" },
+    "18": { "original": "Philadelphia 76ers",      "owner": "Oklahoma City Thunder",    "note": "shown as OKC (PHI) on Tankathon full order" },
+    "19": { "original": "Phoenix Suns",            "owner": "Charlotte Hornets",        "note": "shown as CHA (PHX) on Tankathon full order" },
+    "20": { "original": "Toronto Raptors",         "owner": "Toronto Raptors" },
+    "21": { "original": "Minnesota Timberwolves",  "owner": "Detroit Pistons",          "note": "swap/protection mechanics can affect final routing" },
+    "22": { "original": "Los Angeles Lakers",      "owner": "Los Angeles Lakers" },
+    "23": { "original": "Cleveland Cavaliers",     "owner": "Atlanta Hawks",            "note": "shown as ATL (CLE) on Tankathon full order" },
+    "24": { "original": "Houston Rockets",         "owner": "Philadelphia 76ers",       "note": "shown as PHI (HOU) on Tankathon full order" },
+    "25": { "original": "Denver Nuggets",          "owner": "Denver Nuggets" },
+    "26": { "original": "New York Knicks",         "owner": "New York Knicks" },
+    "27": { "original": "Boston Celtics",          "owner": "Boston Celtics" },
+    "28": { "original": "San Antonio Spurs",       "owner": "Cleveland Cavaliers",     "note": "shown as CLE (SA) on Tankathon full order" },
+    "29": { "original": "Oklahoma City Thunder",   "owner": "Dallas Mavericks",         "note": "shown as DAL (OKC) on Tankathon full order" },
+    "30": { "original": "Detroit Pistons",         "owner": "Minnesota Timberwolves",  "note": "shown as MIN (DET) on Tankathon full order" }
+  },
+  "context_notes": [
+    "OKC/HOU/LAC 2026 1st round uses a 'most favorable / second / least favorable' structure per RealGM; not a simple always-to-OKC Clippers pick.",
+    "If you want the site to compute these dynamically (instead of snapshotting Tankathon), we can encode RealGM rules and resolve them from current slots."
+  ]
+}
