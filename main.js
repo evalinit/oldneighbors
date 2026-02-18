@@ -32,7 +32,7 @@ const parseConfigFromQuery = () => {
     const qs = new URLSearchParams(window.location.search)
 
     const includeSelf = asBool(qs.get('self'), false)
-    const includeTrades = asBool(qs.get('trades'), true)
+    const includeTrades = asBool(qs.get('trades'), false)
 
     const neighborsParam = qs.get('neighbors')
     const radiusParam = qs.get('radius')
