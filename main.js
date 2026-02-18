@@ -1,6 +1,6 @@
 /*
 daily update note (what i changed today - 2026-02-17)
-- added query arg trades=1|0 (default 1)
+- added query arg trades=1|0 (default 0)
   - trades=1: show traded-pick owners using picks_2026.json snapshot by record slot
   - trades=0: ignore picks_2026.json and show "before traded picks"
 - made example links descriptive (not just raw urls)
